@@ -1,0 +1,307 @@
+---
+title: "STA 631 PROJECT"
+author: "Chitti Babu Yelugubandi"
+date: '`r Sys.Date()`'
+output: 
+  rmdformats::readthedown:
+    css: gvsu_readthedown_theme.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Seattle Weather Prediction Using Regression Analysis
+
+## Project Objective: 
+
+The objective of this project, titled "Seattle Weather Prediction Using Regression Analysis," is to develop a predictive model to forecast the maximum daily temperature (`temp_max`) in Seattle using historical weather data. By analyzing features such as minimum temperature (`temp_min`), precipitation, wind speed (`wind`), and weather type (`weather`), my aim to create an accurate and reliable model. This involves data preparation, exploratory data analysis, and model evaluation using metrics like RMSE and MAPE. The goal is to use the model to predict future temperatures and support weather-related decision-making in Seattle.
+
+## Importing the libraries
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(corrplot)
+library(lubridate)
+library(caTools)
+library(caret)
+
+```
+
+## Loading the Data
+
+```{r}
+# Loading the data set
+weather_data <- read.csv('D:/STA 631/seattle-weather.csv')
+
+# Printing the first few rows of the dataset
+head(weather_data)
+
+```
+
+## Data Dimensions and Summary Statistics
+
+
+```{r}
+# Data dimensions
+dim(weather_data)
+
+```
+
+```{r}
+# Summary statistics
+summary_stat <- summary(weather_data)
+
+summary_stat
+```
+
+## Data Types
+
+```{r}
+# Check data types
+str(weather_data)
+
+```
+
+
+## Distribution of Numerical Columns
+
+```{r}
+precipitation_hist <- ggplot(weather_data, aes(x = precipitation)) + 
+  geom_histogram(binwidth = 1, fill = "#AFEEEE", color = "black") +
+  ggtitle("Distribution of Precipitation")
+
+temp_max_hist <- ggplot(weather_data, aes(x = temp_max)) + 
+  geom_histogram(binwidth = 1, fill = "#FFFFCC", color = "black") +
+  ggtitle("Distribution of Maximum Temp")
+
+temp_min_hist <- ggplot(weather_data, aes(x = temp_min)) + 
+  geom_histogram(binwidth = 1, fill = "#99FF99", color = "black") +
+  ggtitle("Distribution of Minimum Temp")
+
+wind_hist <- ggplot(weather_data, aes(x = wind)) + 
+  geom_histogram(binwidth = 0.5, fill = "#99CCFF", color = "black") +
+  ggtitle("Distribution of Wind Speed")
+
+grid.arrange(precipitation_hist, temp_max_hist, temp_min_hist, wind_hist, nrow = 2, ncol = 2)
+
+```
+## Categorical Variable Frequency Analysis
+
+```{r}
+table(weather_data$weather)
+```
+
+
+## Distribution of Categorical Columns
+
+
+```{r}
+weather_data$weather <- as.factor(weather_data$weather)
+
+weather_plot <- ggplot(weather_data, aes(x = weather)) + 
+  geom_bar(fill = "gray", color = "black", alpha = 0.7) +
+  labs(title = "Weather Distribution", x = "Weather Type", y = "Frequency")
+
+temp_max_plot <- ggplot(weather_data, aes(x = weather, y = temp_max, fill = weather)) + 
+  geom_boxplot() +
+  labs(title = "Maximum Temperature by Weather Type", x = "Weather Type", y = "Maximum Temperature") +
+  theme(legend.position = "none")
+
+temp_min_plot <- ggplot(weather_data, aes(x = weather, y = temp_min, fill = weather)) + 
+  geom_boxplot() +
+  labs(title = "Minimum Temperature by Weather Type", x = "Weather Type", y = "Minimum Temperature") +
+  theme(legend.position = "none")
+
+precipitation_plot <- ggplot(weather_data, aes(x = weather, y = precipitation, fill = weather)) + 
+  geom_boxplot() +
+  labs(title = "Precipitation by Weather Type", x = "Weather Type", y = "Precipitation") +
+  theme(legend.position = "none")
+
+grid.arrange(weather_plot, temp_max_plot, temp_min_plot, precipitation_plot, ncol = 2)
+```
+
+
+## Bivariate analysis
+
+```{r}
+temp_precip_scatt <- ggplot(weather_data, aes(x = precipitation, y = temp_max)) +
+  geom_point(color = 'orange', alpha = 0.5) +
+  labs(title = "Maximum Temp vs Precipitation", x = "Precipitation", y = "Maximum Temp")
+
+temp_min_scatt <- ggplot(weather_data, aes(x = temp_max, y = temp_min)) +
+  geom_point(color = 'blue', alpha = 0.5) +
+  ggtitle("Max Temp vs Min Temp") +
+  labs(x = "Max Temp", y = "Min Temp")
+
+precipitation_scatt <- ggplot(weather_data, aes(x = temp_max, y = precipitation)) +
+  geom_point(color = 'green', alpha = 0.5) +
+  ggtitle("Max Temp vs Precipitation") +
+  labs(x = "Max Temp", y = "Precipitation")
+
+wind_scatt <- ggplot(weather_data, aes(x = temp_max, y = wind)) +
+  geom_point(color = 'red', alpha = 0.5) +
+  ggtitle("Max Temp vs Wind Speed") +
+  labs(x = "Max Temp", y = "Wind Speed")
+
+grid.arrange(temp_precip_scatt, temp_min_scatt, precipitation_scatt, wind_scatt, nrow =2, ncol = 2)
+
+```
+
+
+## Multi-Variate analysis
+
+```{r}
+# Convert necessary columns to appropriate types
+weather_data$weather <- as.factor(weather_data$weather)
+
+# Multivariate Scatter Plot: Temp Max vs. Temp Min colored by Weather Type
+multivariate_weather_plot <- ggplot(weather_data, aes(x = temp_min, y = temp_max, color = weather)) +
+  geom_point(alpha = 0.7) +
+  labs(title = "Temp Max vs Temp Min by Weather Type",
+       x = "Min Temperature",
+       y = "Max Temperature") +
+  theme_minimal()
+
+# Display the plot
+print(multivariate_weather_plot)
+```
+
+## Correlation matrix
+```{r}
+# correlation matrix
+cor_matrix <- cor(weather_data %>% select_if(is.numeric))
+
+# Print the correlation matrix
+print(cor_matrix)
+
+# Visualize the correlation matrix
+library(corrplot)
+corrplot(cor_matrix, method = "color", type = "upper", 
+         tl.col = "black", tl.srt = 45, addCoef.col = "black", 
+         diag = FALSE, order = "hclust")
+
+```
+
+## Data Cleaning
+
+```{r}
+# Checking missing values
+
+colSums(is.na(weather_data))
+```
+## Converting categorical columns to numerical columns
+
+```{r}
+
+# Label encoding for 'weather' column
+weather_data$weather <- as.numeric(factor(weather_data$weather, levels = unique(weather_data$weather)))
+
+# Scaling numerical columns
+numerical_columns <- c("temp_max", "temp_min", "precipitation", "wind")
+weather_data[numerical_columns] <- scale(weather_data[numerical_columns])
+
+```
+## Data standardization 
+```{r}
+# Standardization for numerical columns
+weather_data$temp_max <- scale(weather_data$temp_max)
+weather_data$temp_min <- scale(weather_data$temp_min)
+weather_data$precipitation <- scale(weather_data$precipitation)
+weather_data$wind <- scale(weather_data$wind)
+
+```
+
+## Data splitting
+```{r}
+# Splitting the data into training and testing sets (70% train, 30% test)
+set.seed(123) 
+split <- sample.split(weather_data$temp_max, SplitRatio = 0.7)
+train_data <- subset(weather_data, split == TRUE)
+test_data <- subset(weather_data, split == FALSE)
+
+```
+
+## Model Selection
+
+```{r}
+# Load necessary library
+library(caret)
+
+# Define training control for cross-validation
+cv_control <- trainControl(method = "cv", number = 5)  # 5-fold cross-validation
+
+# Train the base model using all predictors
+base_model <- train(temp_max ~ temp_min + precipitation + wind + weather, 
+                    data = train_data, method = "lm", trControl = cv_control)
+
+# Train a reduced model using selected predictors based on domain knowledge
+reduced_model <- train(temp_max ~ temp_min + precipitation, 
+                       data = train_data, method = "lm", trControl = cv_control)
+
+# Compare models using resampling
+model_results <- resamples(list(base = base_model, reduced = reduced_model))
+
+# Summary of the results
+print(summary(model_results))
+
+```
+ 
+## Fitting Linear regression model 
+
+```{r}
+
+# Fitting a linear regression model to predict temp_max using all predictors
+lm_model_all <- lm(temp_max ~ temp_min + precipitation + wind + weather, data = train_data)
+
+# Printing summary of the linear regression model
+summary(lm_model_all)
+
+```
+
+## Distribution of Residual analysis
+
+```{r}
+# Distribution of residuals
+resid_hist <- ggplot(lm_model_all, aes(x = .resid)) + 
+  geom_histogram(binwidth = 0.1, fill = "gray") +
+  labs(title = "Histogram of Residuals", x = "Residuals", y = "Count")
+
+# Variance of residuals
+resid_fitted <- ggplot(lm_model_all, aes(x = .fitted, y = .resid)) + 
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Residuals vs. Fitted Values", x = "Fitted Values", y = "Residuals")
+
+# For 2 plots
+grid.arrange(resid_hist, resid_fitted, nrow = 2, ncol = 1, top = "Regression Assumptions")
+```
+
+
+## Predictions on test data
+```{r}
+# Predicting temp_max on the test set
+predictions <- predict(lm_model_all, newdata = test_data)
+
+```
+
+## RMSE Calculation
+
+```{r}
+# Calculating RMSE
+rmse <- sqrt(mean((test_data$temp_max - predictions)^2))
+print(paste("Root Mean Squared Error (RMSE):", round(rmse, 2)))
+
+```
+
+## MAPE Calculation
+
+```{r}
+# Calculating MAPE
+mape <- mean(abs((test_data$temp_max - predictions) / test_data$temp_max)) * 100
+print(paste("Mean Absolute Percentage Error (MAPE):", round(mape, 2)))
+
+```
+
