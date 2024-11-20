@@ -1,5 +1,5 @@
 ---
-title: "STA 631 PROJECT"
+title: "Seattle Weather Prediction"
 author: "Chitti Babu Yelugubandi"
 date: '`r Sys.Date()`'
 output: 
